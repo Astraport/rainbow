@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Радуга PRO</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Arial', sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #gameContainer {
+            width: 300px;
+            height: 75px;
+            margin: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.1s;
+            position: relative;
+        }
+
+        #gameContainer:active {
+            transform: scale(0.98);
+        }
+
+        .word {
+            font-size: 24px;
+            font-weight: 700;
+            user-select: none;
+            text-transform: uppercase;
+        }
+
+        #controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #6c5ce7, #a8a4e6);
+            color: white;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #score {
+            font-size: 28px;
+            margin: 15px;
+            color: #2d3436;
+            font-weight: 700;
+        }
+
+        #timer {
+            font-size: 24px;
+            color: #2d3436;
+            margin: 10px;
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            width: 300px;
+            height: 8px;
+            background-color: #eee;
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #6c5ce7, #a8a4e6);
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+<body>
+    <div id="score">0</div>
+    <div id="timer">Время: 5.0с</div>
+    <div class="progress-bar">
+        <div class="progress" style="width: 100%"></div>
+    </div>
+    <div id="gameContainer" class="hidden">
+        <div class="word"></div>
+    </div>
+    <div id="controls">
+        <button id="modeButton">Режим: Совпадение</button>
+        <button id="startButton">Старт</button>
+    </div>
+
+    <script>
+        const colors = ['красный', 'зелёный', 'синий', 'чёрный', 'белый', 'фиолетовый', 'жёлтый'];
+        const colorMap = {
+            'красный': 'red',
+            'зелёный': 'green',
+            'синий': 'blue',
+            'чёрный': 'black',
+            'белый': 'white',
+            'фиолетовый': 'purple',
+            'жёлтый': 'yellow'
+        };
+
+        let isGameActive = false;
+        let isWordVisible = false;
+        let score = 0;
+        let mode = 'match';
+        let currentTimeLimit = 5000;
+        let timerId = null;
+        let roundTimeout = null;
+        
+        const gameContainer = document.getElementById('gameContainer');
+        const wordElement = document.querySelector('.word');
+        const scoreElement = document.getElementById('score');
+        const timerElement = document.getElementById('timer');
+        const progress = document.querySelector('.progress');
+        const modeButton = document.getElementById('modeButton');
+        const startButton = document.getElementById('startButton');
+
+        function getRandomColor(exclude) {
+            const availableColors = colors.filter(c => c !== exclude);
+            return availableColors[Math.floor(Math.random() * availableColors.length)];
+        }
+
+        function generateRandomColor() {
+            return '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+        }
+
+        function updateTimerDisplay(time) {
+            timerElement.textContent = `Время: ${(time / 1000).toFixed(1)}с`;
+        }
+
+        function startTimer(duration) {
+            let start = Date.now();
+            let remaining = duration;
+            
+            progress.style.transition = `width ${duration}ms linear`;
+            progress.style.width = '0%';
+            
+            timerId = setTimeout(() => {
+                handleTimeExpired();
+            }, duration);
+
+            function updateProgress() {
+                const passed = Date.now() - start;
+                remaining = duration - passed;
+                updateTimerDisplay(remaining);
+                
+                if (remaining > 0) {
+                    requestAnimationFrame(updateProgress);
+                }
+            }
+            
+            requestAnimationFrame(updateProgress);
+        }
+
+        function handleTimeExpired() {
+            if (!isGameActive) return;
+            
+            score = Math.max(0, score - 1);
+            scoreElement.textContent = score;
+            scoreElement.style.color = '#e74c3c';
+            setTimeout(() => scoreElement.style.color = '#2d3436', 800);
+            
+            hideWord();
+            nextRound();
+        }
+
+        function resetTimer() {
+            clearTimeout(timerId);
+            progress.style.transition = 'none';
+            progress.style.width = '100%';
+        }
+
+        function showWord() {
+            const word = colors[Math.floor(Math.random() * colors.length)];
+            const shouldMatch = Math.random() < 0.5;
+            const textColor = shouldMatch ? colorMap[word] : colorMap[getRandomColor(word)];
+            
+            wordElement.textContent = word;
+            gameContainer.style.color = textColor;
+            
+            const bgColor = generateRandomColor();
+            gameContainer.style.backgroundColor = bgColor;
+            
+            gameContainer.classList.remove('hidden');
+            isWordVisible = true;
+            
+            startTimer(currentTimeLimit);
+        }
+
+        function hideWord() {
+            gameContainer.classList.add('hidden');
+            isWordVisible = false;
+        }
+
+        function handleAction(isCorrect) {
+            if (!isGameActive) return;
+            
+            resetTimer();
+            isWordVisible = false;
+            
+            if (isCorrect) {
+                score++;
+                currentTimeLimit = Math.max(900, currentTimeLimit - 100);
+                scoreElement.style.color = '#2ecc71';
+            } else {
+                score = Math.max(0, score - 1);
+                scoreElement.style.color = '#e74c3c';
+            }
+            
+            scoreElement.textContent = score;
+            setTimeout(() => scoreElement.style.color = '#2d3436', 800);
+            hideWord();
+            
+            nextRound();
+        }
+
+        function nextRound() {
+            if (!isGameActive) return;
+            
+            clearTimeout(roundTimeout);
+            roundTimeout = setTimeout(() => {
+                if (isGameActive) showWord();
+            }, 900);
+        }
+
+        function startGame() {
+            if (isGameActive) return;
+            
+            isGameActive = true;
+            isWordVisible = false;
+            score = 0;
+            currentTimeLimit = 5000;
+            scoreElement.textContent = '0';
+            updateTimerDisplay(currentTimeLimit);
+            startButton.textContent = 'Стоп';
+            
+            nextRound();
+        }
+
+        function stopGame() {
+            isGameActive = false;
+            isWordVisible = false;
+            resetTimer();
+            clearTimeout(roundTimeout);
+            startButton.textContent = 'Старт';
+            hideWord();
+            updateTimerDisplay(currentTimeLimit);
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!isGameActive || !isWordVisible) return;
+            
+            const isContainerClick = e.target.closest('#gameContainer');
+            const currentColor = gameContainer.style.color;
+            const currentWord = colorMap[wordElement.textContent.toLowerCase()];
+            const isMatch = currentColor === currentWord;
+            let shouldClick = mode === 'match' ? isMatch : !isMatch;
+
+            isWordVisible = false;
+            
+            if (isContainerClick) {
+                handleAction(shouldClick);
+            } else {
+                handleAction(!shouldClick);
+            }
+        });
+
+        modeButton.addEventListener('click', () => {
+            mode = mode === 'match' ? 'mismatch' : 'match';
+            modeButton.textContent = `Режим: ${mode === 'match' ? 'Совпадение' : 'Несовпадение'}`;
+        });
+
+        startButton.addEventListener('click', () => {
+            if (isGameActive) stopGame();
+            else startGame();
+        });
+    </script>
+</body>
+</html>
