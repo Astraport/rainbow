@@ -102,6 +102,80 @@
             background: linear-gradient(90deg, #6c5ce7, #a8a4e6);
             transition: width 0.1s linear;
         }
+		
+		.training-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+            font-family: Arial, sans-serif;
+            z-index: 1000;
+        }
+        
+        .training-close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 20px;
+            line-height: 1;
+        }
+        
+        .training-step {
+            display: none;
+            text-align: center;
+        }
+        
+        .training-step.active {
+            display: block;
+        }
+        
+        .training-emoji {
+            font-size: 40px;
+            margin: 10px 0;
+        }
+        
+        .training-navigation {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        
+        /* Специфичные классы для кнопок */
+        .training-btn {
+            padding: 8px 16px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+        
+        .training-btn:hover {
+            background: #0056b3;
+        }
+        
+        /* Стиль только для первого шага */
+        .training-step[data-step="1"] .training-navigation {
+            justify-content: flex-end;
+        }
+		 #global-timer {
+        font-size: 32px;
+        font-weight: 700;
+        color: #2d3436;
+        margin: 15px 0;
+        font-family: 'Arial', sans-serif;
+        letter-spacing: 2px;
+    }
     </style>
 </head>
 <body>
@@ -117,8 +191,101 @@
         <button id="modeButton">Режим: Совпадение</button>
         <button id="startButton">Старт</button>
     </div>
+<div class="training-container" id="trainingContainer">
+        <div class="training-close-btn" onclick="trainingClose()">×</div>
+        
+        <div class="training-step active" data-step="1">
+            <div class="training-emoji">🎯</div>
+            <h3 class="training-title">Улучши свои когнитивные навыки</h3>
+            <p class="training-text">Кликай по слову, если цвет слова совпадает с его значением. Кликай вне слова, если не совпадает.</p>
+            <div class="training-navigation">
+                <button class="training-btn" onclick="trainingNextStep()">Далее</button>
+            </div>
+        </div>
+        
+        <div class="training-step" data-step="2">
+            <div class="training-emoji">📚</div>
+            <h3 class="training-title">Тренируйся ежедневно</h3>
+            <p class="training-text">В процессе скорость принятия решений будет сокращаться. Успевай за таймером иначе будет списан балл.</p>
+            <div class="training-navigation">
+                <button class="training-btn" onclick="trainingPrevStep()">Назад</button>
+                <button class="training-btn" onclick="trainingNextStep()">Далее</button>
+            </div>
+        </div>
+        
+        <div class="training-step" data-step="3">
+            <div class="training-emoji">🏆</div>
+            <h3 class="training-title">Усложняй свои навыки</h3>
+            <p class="training-text">Смени режим на обратный и кликай на слова при НЕ совпадении и вне слова при совпадении.</p>
+            <div class="training-navigation">
+                <button class="training-btn" onclick="trainingPrevStep()">Назад</button>
+                <button class="training-btn" onclick="trainingComplete()">Завершить</button>
+            </div>
+        </div>
+    </div>
 
     <script>
+        (function() {
+            // Уникальные названия переменных
+            const trainingCurrentStep = {
+                value: 1
+            };
+            
+            const trainingPanel = document.getElementById('trainingContainer');
+            
+            function trainingCheckCookie() {
+                if (!document.cookie.includes('training_completed=true')) {
+                    trainingPanel.style.display = 'block';
+                }
+            }
+            
+            function trainingSetCookie() {
+                const date = new Date();
+                date.setFullYear(date.getFullYear() + 1);
+                document.cookie = `training_completed=true; expires=${date.toUTCString()}; path=/`;
+            }
+            
+            function trainingUpdateSteps() {
+                document.querySelectorAll('.training-step').forEach(step => {
+                    step.classList.remove('active');
+                    if(parseInt(step.dataset.step) === trainingCurrentStep.value) {
+                        step.classList.add('active');
+                    }
+                });
+            }
+            
+            window.trainingNextStep = function() {
+                if(trainingCurrentStep.value < 3) {
+                    trainingCurrentStep.value++;
+                    trainingUpdateSteps();
+                }
+            }
+            
+            window.trainingPrevStep = function() {
+                if(trainingCurrentStep.value > 1) {
+                    trainingCurrentStep.value--;
+                    trainingUpdateSteps();
+                }
+            }
+            
+            window.trainingComplete = function() {
+                trainingPanel.style.display = 'none';
+                trainingSetCookie();
+            }
+            
+            window.trainingClose = function() {
+                trainingPanel.style.display = 'none';
+                trainingSetCookie();
+            }
+            
+            // Инициализация
+            window.addEventListener('load', trainingCheckCookie);
+        })();
+		
+		
+		
+		
+
         const colors = ['красный', 'зелёный', 'синий', 'чёрный', 'белый', 'фиолетовый', 'жёлтый'];
         const colorMap = {
             'красный': 'red',
@@ -137,6 +304,98 @@
         let currentTimeLimit = 5000;
         let timerId = null;
         let roundTimeout = null;
+		
+		
+    let globalTime = 180; // 3 минуты в секундах
+    let globalTimerId = null;
+    const globalTimerElement = document.createElement('div');
+    globalTimerElement.id = 'global-timer';
+    document.body.insertBefore(globalTimerElement, document.getElementById('score'));
+	
+	// Функция для расчета яркости цвета
+    function getLuminance(hex) {
+        const rgb = parseInt(hex.substring(1), 16);
+        const r = (rgb >> 16) & 0xff;
+        const g = (rgb >> 8) & 0xff;
+        const b = (rgb >> 0) & 0xff;
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    // Модифицированная функция генерации фона
+    function generateRandomColor(textColor) {
+        let bgColor;
+        do {
+            bgColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+            const bgLum = getLuminance(bgColor);
+            const textLum = getLuminance(textColor);
+            const contrast = (Math.max(bgLum, textLum) + 0.05) / (Math.min(bgLum, textLum) + 0.05);
+        } while (contrast < 3.5); // Минимальный контраст WCAG AA
+        return bgColor;
+    }
+
+    // Обновленная функция showWord
+    function showWord() {
+        const word = colors[Math.floor(Math.random() * colors.length)];
+        const shouldMatch = Math.random() < 0.5;
+        const textColor = colorMap[shouldMatch ? word : getRandomColor(word)];
+        
+        // Генерация контрастного фона
+        const bgColor = generateRandomColor(textColor);
+        
+        wordElement.textContent = word;
+        gameContainer.style.color = textColor;
+        gameContainer.style.backgroundColor = bgColor;
+        
+        gameContainer.classList.remove('hidden');
+        isWordVisible = true;
+        startTimer(currentTimeLimit);
+    }
+
+    // Функции для глобального таймера
+    function updateGlobalTimer() {
+        const minutes = Math.floor(globalTime / 60).toString().padStart(2, '0');
+        const seconds = (globalTime % 60).toString().padStart(2, '0');
+        globalTimerElement.textContent = `${minutes}:${seconds}`;
+        
+        if(globalTime <= 0) {
+            stopGame();
+            clearInterval(globalTimerId);
+            globalTimerElement.textContent = "00:00";
+            alert("Время вышло! Ваш счёт: " + score);
+        }
+        globalTime--;
+    }
+
+    function startGame() {
+       if (isGameActive) return;
+        
+        // Сброс и запуск глобального таймера
+        globalTime = 180;
+        clearInterval(globalTimerId);
+        globalTimerId = setInterval(updateGlobalTimer, 1000);
+        updateGlobalTimer();
+        
+        // Остальной код запуска
+        isGameActive = true;
+        isWordVisible = false;
+        score = 0;
+        currentTimeLimit = 5000;
+        scoreElement.textContent = '0';
+        updateTimerDisplay(currentTimeLimit);
+        startButton.textContent = 'Стоп';
+        nextRound();
+    }
+
+    function stopGame() {
+         isGameActive = false;
+        isWordVisible = false;
+        resetTimer();
+        clearTimeout(roundTimeout);
+        startButton.textContent = 'Старт';
+        hideWord();
+        updateTimerDisplay(currentTimeLimit);
+        clearInterval(globalTimerId); // Останавливаем глобальный таймер
+    }
         
         const gameContainer = document.getElementById('gameContainer');
         const wordElement = document.querySelector('.word');
@@ -151,9 +410,6 @@
             return availableColors[Math.floor(Math.random() * availableColors.length)];
         }
 
-        function generateRandomColor() {
-            return '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
-        }
 
         function updateTimerDisplay(time) {
             timerElement.textContent = `Время: ${(time / 1000).toFixed(1)}с`;
@@ -201,23 +457,6 @@
             progress.style.width = '100%';
         }
 
-        function showWord() {
-            const word = colors[Math.floor(Math.random() * colors.length)];
-            const shouldMatch = Math.random() < 0.5;
-            const textColor = shouldMatch ? colorMap[word] : colorMap[getRandomColor(word)];
-            
-            wordElement.textContent = word;
-            gameContainer.style.color = textColor;
-            
-            const bgColor = generateRandomColor();
-            gameContainer.style.backgroundColor = bgColor;
-            
-            gameContainer.classList.remove('hidden');
-            isWordVisible = true;
-            
-            startTimer(currentTimeLimit);
-        }
-
         function hideWord() {
             gameContainer.classList.add('hidden');
             isWordVisible = false;
@@ -252,30 +491,6 @@
             roundTimeout = setTimeout(() => {
                 if (isGameActive) showWord();
             }, 900);
-        }
-
-        function startGame() {
-            if (isGameActive) return;
-            
-            isGameActive = true;
-            isWordVisible = false;
-            score = 0;
-            currentTimeLimit = 5000;
-            scoreElement.textContent = '0';
-            updateTimerDisplay(currentTimeLimit);
-            startButton.textContent = 'Стоп';
-            
-            nextRound();
-        }
-
-        function stopGame() {
-            isGameActive = false;
-            isWordVisible = false;
-            resetTimer();
-            clearTimeout(roundTimeout);
-            startButton.textContent = 'Старт';
-            hideWord();
-            updateTimerDisplay(currentTimeLimit);
         }
 
         document.addEventListener('click', (e) => {

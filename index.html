@@ -168,6 +168,13 @@
         .training-step[data-step="1"] .training-navigation {
             justify-content: flex-end;
         }
+		  #global-timer {
+        font-size: 32px;
+        font-weight: 700;
+        color: #2d3436;
+        margin: 15px 0;
+        font-family: 'Arial', sans-serif;
+    }
     </style>
 </head>
 <body>
@@ -273,6 +280,10 @@
             // Инициализация
             window.addEventListener('load', trainingCheckCookie);
         })();
+		
+		
+		
+		
 
         const colors = ['красный', 'зелёный', 'синий', 'чёрный', 'белый', 'фиолетовый', 'жёлтый'];
         const colorMap = {
@@ -292,6 +303,111 @@
         let currentTimeLimit = 5000;
         let timerId = null;
         let roundTimeout = null;
+		
+		
+    let globalTime = 180; // 3 минуты в секундах
+    let globalTimerId = null;
+    const globalTimerElement = document.createElement('div');
+    globalTimerElement.id = 'global-timer';
+    document.body.insertBefore(globalTimerElement, document.getElementById('score'));
+	
+	    function colorNameToHex(color) {
+        const colors = {
+            'red': '#ff0000',
+            'green': '#008000',
+            'blue': '#0000ff',
+            'black': '#000000',
+            'white': '#ffffff',
+            'purple': '#800080',
+            'yellow': '#ffff00'
+        };
+        return colors[color.toLowerCase()] || '#000000';
+    }
+	
+	// Функция для расчета яркости цвета
+    function getLuminance(hex) {
+        const rgb = parseInt(hex.substring(1), 16);
+        const r = (rgb >> 16) & 0xff;
+        const g = (rgb >> 8) & 0xff;
+        const b = (rgb >> 0) & 0xff;
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    // Модифицированная функция генерации фона
+ function generateRandomColor(textColorName) {
+        const textColorHex = colorNameToHex(textColorName);
+        let bgColor, bgLum, textLum, contrast;
+        do {
+            bgColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+            bgLum = getLuminance(bgColor);
+            textLum = getLuminance(textColorHex);
+            contrast = (Math.max(bgLum, textLum) + 0.05) / (Math.min(bgLum, textLum) + 0.05);
+        } while (contrast < 3.5);
+        return bgColor;
+    }
+
+    // Обновленная функция showWord
+    function showWord() {
+        const word = colors[Math.floor(Math.random() * colors.length)];
+        const shouldMatch = Math.random() < 0.5;
+        const textColorName = shouldMatch ? colorMap[word] : colorMap[getRandomColor(word)];
+        
+        // Генерация контрастного фона
+        const bgColor = generateRandomColor(textColorName);
+        
+        wordElement.textContent = word;
+        gameContainer.style.color = textColorName;
+        gameContainer.style.backgroundColor = bgColor;
+        
+        gameContainer.classList.remove('hidden');
+        isWordVisible = true;
+        startTimer(currentTimeLimit);
+    }
+
+    // Функции для глобального таймера
+    function updateGlobalTimer() {
+        if (!isGameActive) return;
+        
+        const minutes = Math.floor(globalTime / 60).toString().padStart(2, '0');
+        const seconds = (globalTime % 60).toString().padStart(2, '0');
+        globalTimerElement.textContent = `${minutes}:${seconds}`;
+        
+        if (globalTime <= 0) {
+            stopGame();
+            clearInterval(globalTimerId);
+            alert("Время вышло! Счёт: " + score);
+        }
+        globalTime--;
+    }
+
+    function startGame() {
+        if (isGameActive) return;
+        
+        // Сброс глобального таймера
+        globalTime = 180;
+        clearInterval(globalTimerId);
+        globalTimerId = setInterval(updateGlobalTimer, 1000);
+        
+        // Остальной код
+        isGameActive = true;
+        isWordVisible = false;
+        score = 0;
+        currentTimeLimit = 5000;
+        scoreElement.textContent = '0';
+        startButton.textContent = 'Стоп';
+        nextRound();
+    }
+
+    function stopGame() {
+         isGameActive = false;
+        isWordVisible = false;
+        resetTimer();
+        clearTimeout(roundTimeout);
+        startButton.textContent = 'Старт';
+        hideWord();
+        updateTimerDisplay(currentTimeLimit);
+        clearInterval(globalTimerId); // Останавливаем глобальный таймер
+    }
         
         const gameContainer = document.getElementById('gameContainer');
         const wordElement = document.querySelector('.word');
@@ -306,9 +422,6 @@
             return availableColors[Math.floor(Math.random() * availableColors.length)];
         }
 
-        function generateRandomColor() {
-            return '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
-        }
 
         function updateTimerDisplay(time) {
             timerElement.textContent = `Время: ${(time / 1000).toFixed(1)}с`;
@@ -356,23 +469,6 @@
             progress.style.width = '100%';
         }
 
-        function showWord() {
-            const word = colors[Math.floor(Math.random() * colors.length)];
-            const shouldMatch = Math.random() < 0.5;
-            const textColor = shouldMatch ? colorMap[word] : colorMap[getRandomColor(word)];
-            
-            wordElement.textContent = word;
-            gameContainer.style.color = textColor;
-            
-            const bgColor = generateRandomColor();
-            gameContainer.style.backgroundColor = bgColor;
-            
-            gameContainer.classList.remove('hidden');
-            isWordVisible = true;
-            
-            startTimer(currentTimeLimit);
-        }
-
         function hideWord() {
             gameContainer.classList.add('hidden');
             isWordVisible = false;
@@ -407,30 +503,6 @@
             roundTimeout = setTimeout(() => {
                 if (isGameActive) showWord();
             }, 900);
-        }
-
-        function startGame() {
-            if (isGameActive) return;
-            
-            isGameActive = true;
-            isWordVisible = false;
-            score = 0;
-            currentTimeLimit = 5000;
-            scoreElement.textContent = '0';
-            updateTimerDisplay(currentTimeLimit);
-            startButton.textContent = 'Стоп';
-            
-            nextRound();
-        }
-
-        function stopGame() {
-            isGameActive = false;
-            isWordVisible = false;
-            resetTimer();
-            clearTimeout(roundTimeout);
-            startButton.textContent = 'Старт';
-            hideWord();
-            updateTimerDisplay(currentTimeLimit);
         }
 
         document.addEventListener('click', (e) => {
